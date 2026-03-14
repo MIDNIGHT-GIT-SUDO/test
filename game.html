@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Twin Tower Defense</title>
+  <style>
+    :root {
+      --bg: #060816;
+      --panel: rgba(10, 18, 38, 0.82);
+      --grid: rgba(70, 120, 255, 0.14);
+      --cyan: #32f6ff;
+      --pink: #ff4fd8;
+      --lime: #98ff5a;
+      --gold: #ffd24a;
+      --red: #ff5b6e;
+      --white: #e8f7ff;
+      --shadow-cyan: 0 0 14px rgba(50, 246, 255, 0.7);
+      --shadow-pink: 0 0 14px rgba(255, 79, 216, 0.7);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--white);
+      background:
+        radial-gradient(circle at top, rgba(33, 65, 136, 0.3), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(255, 79, 216, 0.17), transparent 28%),
+        linear-gradient(180deg, #040611, #070d1d 35%, #050812 100%);
+      overflow: hidden;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    .hud {
+      background: var(--panel);
+      border: 1px solid rgba(98, 190, 255, 0.22);
+      border-radius: 22px;
+      padding: 18px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.35), inset 0 0 30px rgba(50, 246, 255, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.05;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-shadow: 0 0 16px rgba(50, 246, 255, 0.45);
+    }
+
+    .subtitle {
+      color: #93bde6;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-top: 4px;
+    }
+
+    .card {
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 14px;
+      background: rgba(255,255,255,0.03);
+      box-shadow: inset 0 0 16px rgba(255,255,255,0.02);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #8bc8ff;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin: 7px 0;
+      font-size: 14px;
+    }
+
+    .pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.04);
+      white-space: nowrap;
+    }
+
+    .p1 { color: var(--cyan); text-shadow: var(--shadow-cyan); }
+    .p2 { color: var(--pink); text-shadow: var(--shadow-pink); }
+    .accent { color: var(--gold); }
+
+    .help {
+      font-size: 12px;
+      line-height: 1.55;
+      color: #9bb0c8;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      background: linear-gradient(180deg, rgba(9,18,42,0.9), rgba(8,12,22,0.94));
+      border: 1px solid rgba(95, 179, 255, 0.18);
+      border-radius: 26px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.45), inset 0 0 50px rgba(50, 246, 255, 0.05);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .center-panel {
+      background: rgba(7, 14, 28, 0.84);
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 22px;
+      padding: 22px 26px;
+      text-align: center;
+      max-width: 520px;
+      box-shadow: 0 0 32px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(255,255,255,0.03);
+      backdrop-filter: blur(14px);
+    }
+
+    .center-panel h3 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .center-panel p {
+      margin: 8px 0;
+      color: #a9c0da;
+      line-height: 1.5;
+    }
+
+    .blink {
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .tiny {
+      font-size: 11px;
+      color: #7c95b3;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1050px) {
+      .shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: 100vh;
+      }
+      .hud {
+        max-height: 36vh;
+        overflow: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="hud">
+      <div>
+        <h1 class="title">Neon Twin<br/>Tower Defense</h1>
+        <div class="subtitle">Игра на двоих на одной клавиатуре. Неоновая векторная арена, два командира, один общий штурм.</div>
+      </div>
+
+      <section class="card">
+        <h2>Статус матча</h2>
+        <div class="row"><span>Волна</span><span class="pill" id="waveLabel">1</span></div>
+        <div class="row"><span>До следующей волны</span><span class="pill" id="waveTimer">0.0s</span></div>
+        <div class="row"><span>Врагов на поле</span><span class="pill" id="enemyLabel">0</span></div>
+        <div class="row"><span>Игра</span><span class="pill" id="stateLabel">Ожидание</span></div>
+      </section>
+
+      <section class="card">
+        <h2><span class="p1">Игрок 1</span> · Левая сторона</h2>
+        <div class="row"><span>Энергия</span><span class="pill" id="p1Energy">100</span></div>
+        <div class="row"><span>База</span><span class="pill" id="p1Base">100</span></div>
+        <div class="row"><span>Курсор</span><span class="pill" id="p1Cursor">1,1</span></div>
+        <div class="help">
+          W A S D — курсор<br/>
+          Q — лазерная башня <span class="accent">(35)</span><br/>
+          E — импульсная башня <span class="accent">(50)</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="p2">Игрок 2</span> · Правая сторона</h2>
+        <div class="row"><span>Энергия</span><span class="pill" id="p2Energy">100</span></div>
+        <div class="row"><span>База</span><span class="pill" id="p2Base">100</span></div>
+        <div class="row"><span>Курсор</span><span class="pill" id="p2Cursor">1,1</span></div>
+        <div class="help">
+          I J K L — курсор<br/>
+          U — лазерная башня <span class="accent">(35)</span><br/>
+          O — импульсная башня <span class="accent">(50)</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Правила</h2>
+        <div class="help">
+          Враги идут из центра в обе базы. Каждый игрок защищает свою половину карты. За уничтожение врагов даётся энергия. Лазер бьёт быстро по одной цели. Импульсная башня стреляет медленнее, но прошивает сразу несколько врагов по линии. Продержитесь как можно дольше.
+        </div>
+      </section>
+
+      <div class="tiny">Нажми <b>Space</b>, чтобы начать или перезапустить матч.</div>
+    </aside>
+
+    <main class="canvas-wrap">
+      <canvas id="game"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="center-panel">
+          <h3 class="p1">Neon <span class="p2">Duo</span></h3>
+          <p>Двое игроков строят башни на своей стороне и отражают синтетические волны из центра.</p>
+          <p class="blink">Нажми <b>Space</b>, чтобы начать</p>
+          <p class="tiny">На мобильных игра не рассчитана — лучше открыть на компьютере.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+
+    const ui = {
+      waveLabel: document.getElementById('waveLabel'),
+      waveTimer: document.getElementById('waveTimer'),
+      enemyLabel: document.getElementById('enemyLabel'),
+      stateLabel: document.getElementById('stateLabel'),
+      p1Energy: document.getElementById('p1Energy'),
+      p2Energy: document.getElementById('p2Energy'),
+      p1Base: document.getElementById('p1Base'),
+      p2Base: document.getElementById('p2Base'),
+      p1Cursor: document.getElementById('p1Cursor'),
+      p2Cursor: document.getElementById('p2Cursor')
+    };
+
+    const world = {
+      cols: 16,
+      rows: 8,
+      cell: 0,
+      padX: 0,
+      padY: 0,
+      width: 0,
+      height: 0
+    };
+
+    const state = {
+      running: false,
+      gameOver: false,
+      time: 0,
+      wave: 1,
+      nextWaveIn: 4,
+      waveSpawning: false,
+      spawnLeft: 0,
+      spawnRight: 0,
+      spawnTick: 0,
+      enemies: [],
+      projectiles: [],
+      particles: [],
+      flashes: [],
+      towers: [],
+      grid: [],
+      players: []
+    };
+
+    function resize() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+      world.width = rect.width;
+      world.height = rect.height;
+      world.cell = Math.min((rect.width - 80) / world.cols, (rect.height - 80) / world.rows);
+      world.padX = (rect.width - world.cell * world.cols) / 2;
+      world.padY = (rect.height - world.cell * world.rows) / 2;
+    }
+
+    function makePlayers() {
+      return [
+        {
+          side: 'left',
+          color: '#32f6ff',
+          soft: 'rgba(50,246,255,0.25)',
+          baseHP: 100,
+          energy: 100,
+          cursor: { x: 2, y: 3 },
+          homeX: 0,
+          controls: { up: 'w', down: 's', left: 'a', right: 'd', basic: 'q', pulse: 'e' }
+        },
+        {
+          side: 'right',
+          color: '#ff4fd8',
+          soft: 'rgba(255,79,216,0.25)',
+          baseHP: 100,
+          energy: 100,
+          cursor: { x: 13, y: 4 },
+          homeX: world.cols - 1,
+          controls: { up: 'i', down: 'k', left: 'j', right: 'l', basic: 'u', pulse: 'o' }
+        }
+      ];
+    }
+
+    function resetGame() {
+      state.running = true;
+      state.gameOver = false;
+      state.time = 0;
+      state.wave = 1;
+      state.nextWaveIn = 4;
+      state.waveSpawning = false;
+      state.spawnLeft = 0;
+      state.spawnRight = 0;
+      state.spawnTick = 0;
+      state.enemies = [];
+      state.projectiles = [];
+      state.particles = [];
+      state.flashes = [];
+      state.towers = [];
+      state.grid = Array.from({ length: world.rows }, () => Array(world.cols).fill(null));
+      state.players = makePlayers();
+      overlay.style.display = 'none';
+      updateUI();
+    }
+
+    function cellCenter(x, y) {
+      return {
+        x: world.padX + x * world.cell + world.cell / 2,
+        y: world.padY + y * world.cell + world.cell / 2
+      };
+    }
+
+    function gridFromPixel(px, py) {
+      return {
+        x: Math.floor((px - world.padX) / world.cell),
+        y: Math.floor((py - world.padY) / world.cell)
+      };
+    }
+
+    function inBounds(x, y) {
+      return x >= 0 && x < world.cols && y >= 0 && y < world.rows;
+    }
+
+    function canBuild(player, x, y) {
+      if (!inBounds(x, y)) return false;
+      if (state.grid[y][x]) return false;
+      if (x === 7 || x === 8) return false;
+      if (player.side === 'left' && x > 6) return false;
+      if (player.side === 'right' && x < 9) return false;
+      return true;
+    }
+
+    function addTower(playerIndex, type) {
+      const player = state.players[playerIndex];
+      const cost = type === 'laser' ? 35 : 50;
+      if (player.energy < cost) return;
+      const { x, y } = player.cursor;
+      if (!canBuild(player, x, y)) return;
+
+      const cfg = type === 'laser'
+        ? { range: 2.8, fireRate: 0.38, damage: 16, kind: 'laser' }
+        : { range: 3.4, fireRate: 0.9, damage: 11, pierce: 3, kind: 'pulse' };
+
+      const c = cellCenter(x, y);
+      const tower = {
+        owner: playerIndex,
+        x, y,
+        px: c.x,
+        py: c.y,
+        cooldown: Math.random() * 0.2,
+        ...cfg
+      };
+      state.towers.push(tower);
+      state.grid[y][x] = tower;
+      player.energy -= cost;
+      burst(c.x, c.y, player.color, 14, 1.8);
+      updateUI();
+    }
+
+    function spawnEnemy(side) {
+      const y = Math.floor(Math.random() * world.rows);
+      const laneCenter = cellCenter(side === 'left' ? 8 : 7, y);
+      const speed = 18 + state.wave * 2.2 + Math.random() * 6;
+      const hp = 28 + state.wave * 8;
+      state.enemies.push({
+        side,
+        x: laneCenter.x,
+        y: laneCenter.y,
+        row: y,
+        hp,
+        maxHp: hp,
+        speed,
+        radius: world.cell * 0.2,
+        alive: true
+      });
+    }
+
+    function startWave() {
+      state.waveSpawning = true;
+      const count = 4 + state.wave * 2;
+      state.spawnLeft = count;
+      state.spawnRight = count;
+      state.spawnTick = 0.15;
+      state.nextWaveIn = 999;
+      updateUI();
+    }
+
+    function updateWave(dt) {
+      if (!state.waveSpawning) {
+        state.nextWaveIn -= dt;
+        if (state.nextWaveIn <= 0) startWave();
+        return;
+      }
+
+      state.spawnTick -= dt;
+      if (state.spawnTick <= 0) {
+        if (state.spawnLeft > 0) {
+          spawnEnemy('left');
+          state.spawnLeft--;
+        }
+        if (state.spawnRight > 0) {
+          spawnEnemy('right');
+          state.spawnRight--;
+        }
+        state.spawnTick = Math.max(0.18, 0.46 - state.wave * 0.015);
+      }
+
+      if (state.spawnLeft === 0 && state.spawnRight === 0 && state.enemies.length === 0) {
+        state.waveSpawning = false;
+        state.wave += 1;
+        state.nextWaveIn = 4.5;
+        state.players.forEach(p => { p.energy += 18; });
+      }
+    }
+
+    function findTarget(tower) {
+      let best = null;
+      let bestDist = Infinity;
+      for (const enemy of state.enemies) {
+        if (!enemy.alive) continue;
+        if (tower.owner === 0 && enemy.side !== 'left') continue;
+        if (tower.owner === 1 && enemy.side !== 'right') continue;
+        const dx = enemy.x - tower.px;
+        const dy = enemy.y - tower.py;
+        const dist = Math.hypot(dx, dy) / world.cell;
+        if (dist <= tower.range && dist < bestDist) {
+          bestDist = dist;
+          best = enemy;
+        }
+      }
+      return best;
+    }
+
+    function shootTower(tower, target) {
+      if (!target) return;
+      if (tower.kind === 'laser') {
+        state.projectiles.push({
+          kind: 'laser',
+          owner: tower.owner,
+          x: tower.px,
+          y: tower.py,
+          tx: target.x,
+          ty: target.y,
+          target,
+          speed: 520,
+          damage: tower.damage,
+          radius: 4
+        });
+      } else {
+        state.flashes.push({
+          x1: tower.px, y1: tower.py, x2: target.x, y2: target.y,
+          color: tower.owner === 0 ? '#32f6ff' : '#ff4fd8',
+          life: 0.08,
+          width: 3
+        });
+
+        const hits = state.enemies
+          .filter(e => e.alive && e.side === target.side && e.row === target.row)
+          .sort((a, b) => Math.abs(a.x - tower.px) - Math.abs(b.x - tower.px))
+          .slice(0, tower.pierce || 2);
+
+        hits.forEach(enemy => applyDamage(enemy, tower.damage, tower.owner));
+      }
+    }
+
+    function applyDamage(enemy, damage, ownerIndex) {
+      enemy.hp -= damage;
+      burst(enemy.x, enemy.y, state.players[ownerIndex].color, 4, 0.7);
+      if (enemy.hp <= 0 && enemy.alive) {
+        enemy.alive = false;
+        state.players[ownerIndex].energy += 10;
+        burst(enemy.x, enemy.y, state.players[ownerIndex].color, 16, 2.4);
+      }
+    }
+
+    function updateTowers(dt) {
+      for (const tower of state.towers) {
+        tower.cooldown -= dt;
+        if (tower.cooldown <= 0) {
+          const target = findTarget(tower);
+          if (target) {
+            shootTower(tower, target);
+            tower.cooldown = tower.fireRate;
+          }
+        }
+      }
+    }
+
+    function updateProjectiles(dt) {
+      for (const p of state.projectiles) {
+        if (p.target && !p.target.alive) { p.dead = true; continue; }
+        const tx = p.target ? p.target.x : p.tx;
+        const ty = p.target ? p.target.y : p.ty;
+        const dx = tx - p.x;
+        const dy = ty - p.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 8) {
+          if (p.target && p.target.alive) applyDamage(p.target, p.damage, p.owner);
+          state.flashes.push({ x1: p.x, y1: p.y, x2: tx, y2: ty, color: state.players[p.owner].color, life: 0.06, width: 2 });
+          p.dead = true;
+          continue;
+        }
+        const step = Math.min(dist, p.speed * dt);
+        p.x += dx / dist * step;
+        p.y += dy / dist * step;
+      }
+      state.projectiles = state.projectiles.filter(p => !p.dead);
+    }
+
+    function updateEnemies(dt) {
+      const leftBase = cellCenter(0, 0).x - world.cell * 0.1;
+      const rightBase = cellCenter(world.cols - 1, 0).x + world.cell * 0.1;
+
+      for (const enemy of state.enemies) {
+        if (!enemy.alive) continue;
+        const dir = enemy.side === 'left' ? -1 : 1;
+        enemy.x += dir * enemy.speed * dt;
+        const targetX = enemy.side === 'left' ? leftBase : rightBase;
+        if ((dir < 0 && enemy.x <= targetX) || (dir > 0 && enemy.x >= targetX)) {
+          enemy.alive = false;
+          const playerIndex = enemy.side === 'left' ? 0 : 1;
+          state.players[playerIndex].baseHP -= 12;
+          burst(enemy.x, enemy.y, '#ff5b6e', 18, 2.8);
+          screenFlash(playerIndex);
+          if (state.players[playerIndex].baseHP <= 0) {
+            state.players[playerIndex].baseHP = 0;
+            endGame(playerIndex === 0 ? 2 : 1);
+          }
+        }
+      }
+      state.enemies = state.enemies.filter(e => e.alive);
+    }
+
+    function burst(x, y, color, count, speedMul) {
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const speed = (18 + Math.random() * 42) * speedMul;
+        state.particles.push({
+          x, y,
+          vx: Math.cos(a) * speed,
+          vy: Math.sin(a) * speed,
+          life: 0.25 + Math.random() * 0.45,
+          maxLife: 0.6,
+          color
+        });
+      }
+    }
+
+    function screenFlash(playerIndex) {
+      state.flashes.push({
+        full: true,
+        side: playerIndex,
+        color: playerIndex === 0 ? 'rgba(50,246,255,0.16)' : 'rgba(255,79,216,0.16)',
+        life: 0.22
+      });
+    }
+
+    function updateFx(dt) {
+      state.particles.forEach(p => {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= 0.97;
+        p.vy *= 0.97;
+        p.life -= dt;
+      });
+      state.particles = state.particles.filter(p => p.life > 0);
+
+      state.flashes.forEach(f => f.life -= dt);
+      state.flashes = state.flashes.filter(f => f.life > 0);
+    }
+
+    function endGame(winner) {
+      state.running = false;
+      state.gameOver = true;
+      overlay.style.display = 'flex';
+      overlay.innerHTML = `
+        <div class="center-panel">
+          <h3>${winner === 1 ? '<span class="p1">Игрок 1 победил</span>' : '<span class="p2">Игрок 2 победил</span>'}</h3>
+          <p>Одна из баз была уничтожена. Нажми <b>Space</b>, чтобы сыграть ещё раз.</p>
+          <p class="tiny">Дожитая волна: ${state.wave}</p>
+        </div>
+      `;
+      updateUI();
+    }
+
+    function updateUI() {
+      const p1 = state.players[0] || { energy: 0, baseHP: 0, cursor: { x: 0, y: 0 } };
+      const p2 = state.players[1] || { energy: 0, baseHP: 0, cursor: { x: 0, y: 0 } };
+      ui.waveLabel.textContent = state.wave;
+      ui.waveTimer.textContent = state.waveSpawning ? 'Волна идёт' : Math.max(0, state.nextWaveIn).toFixed(1) + 's';
+      ui.enemyLabel.textContent = state.enemies.length;
+      ui.stateLabel.textContent = state.gameOver ? 'Финиш' : (state.running ? 'Матч' : 'Ожидание');
+      ui.p1Energy.textContent = Math.floor(p1.energy);
+      ui.p2Energy.textContent = Math.floor(p2.energy);
+      ui.p1Base.textContent = Math.max(0, Math.floor(p1.baseHP));
+      ui.p2Base.textContent = Math.max(0, Math.floor(p2.baseHP));
+      ui.p1Cursor.textContent = `${p1.cursor.x + 1},${p1.cursor.y + 1}`;
+      ui.p2Cursor.textContent = `${p2.cursor.x + 1},${p2.cursor.y + 1}`;
+    }
+
+    function moveCursor(playerIndex, dx, dy) {
+      if (!state.running) return;
+      const p = state.players[playerIndex];
+      p.cursor.x = Math.max(0, Math.min(world.cols - 1, p.cursor.x + dx));
+      p.cursor.y = Math.max(0, Math.min(world.rows - 1, p.cursor.y + dy));
+      updateUI();
+    }
+
+    function drawGrid() {
+      for (let y = 0; y < world.rows; y++) {
+        for (let x = 0; x < world.cols; x++) {
+          const px = world.padX + x * world.cell;
+          const py = world.padY + y * world.cell;
+          const isCenter = x === 7 || x === 8;
+          ctx.strokeStyle = isCenter ? 'rgba(255,210,74,0.35)' : 'rgba(80,140,255,0.14)';
+          ctx.lineWidth = 1;
+          roundRect(px + 3, py + 3, world.cell - 6, world.cell - 6, 12);
+          ctx.stroke();
+          if (isCenter) {
+            ctx.fillStyle = 'rgba(255,210,74,0.05)';
+            roundRect(px + 7, py + 7, world.cell - 14, world.cell - 14, 10);
+            ctx.fill();
+          }
+        }
+      }
+
+      const midX = world.padX + 8 * world.cell;
+      ctx.strokeStyle = 'rgba(255,210,74,0.4)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(midX, world.padY + 8);
+      ctx.lineTo(midX, world.padY + world.rows * world.cell - 8);
+      ctx.stroke();
+    }
+
+    function drawBase(side, hp, color) {
+      const x = side === 'left' ? world.padX - world.cell * 0.55 : world.padX + world.cols * world.cell + world.cell * 0.55;
+      const y = world.padY + world.rows * world.cell / 2;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = side === 'left' ? 'rgba(50,246,255,0.10)' : 'rgba(255,79,216,0.10)';
+      ctx.lineWidth = 3;
+      glow(color, 14);
+      polygon(0, 0, world.cell * 0.52, 6, Math.PI / 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-26, world.cell * 0.72, 52, 7);
+      ctx.fillStyle = color;
+      ctx.fillRect(-26, world.cell * 0.72, 52 * (hp / 100), 7);
+      ctx.restore();
+    }
+
+    function drawTowers() {
+      for (const t of state.towers) {
+        const color = t.owner === 0 ? '#32f6ff' : '#ff4fd8';
+        ctx.save();
+        ctx.translate(t.px, t.py);
+        glow(color, 14);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = t.kind === 'laser' ? 'rgba(50,246,255,0.08)' : 'rgba(255,79,216,0.08)';
+        ctx.lineWidth = 2.5;
+        if (t.kind === 'laser') {
+          polygon(0, 0, world.cell * 0.24, 4, Math.PI / 4);
+        } else {
+          polygon(0, 0, world.cell * 0.26, 6, Math.PI / 6);
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-world.cell * 0.12, world.cell * 0.12);
+        ctx.lineTo(world.cell * 0.12, -world.cell * 0.12);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawEnemies() {
+      for (const e of state.enemies) {
+        const color = e.side === 'left' ? '#74c0ff' : '#ff85e8';
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 2;
+        glow(color, 9);
+        polygon(0, 0, e.radius * 1.45, 3, Math.PI / 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(e.x - 14, e.y - 18, 28, 4);
+        ctx.fillStyle = color;
+        ctx.fillRect(e.x - 14, e.y - 18, 28 * Math.max(0, e.hp / e.maxHp), 4);
+      }
+    }
+
+    function drawProjectiles() {
+      for (const p of state.projectiles) {
+        const color = p.owner === 0 ? '#32f6ff' : '#ff4fd8';
+        ctx.beginPath();
+        ctx.fillStyle = color;
+        glow(color, 12);
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawParticles() {
+      for (const p of state.particles) {
+        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 2.5, 2.5);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawFlashes() {
+      for (const f of state.flashes) {
+        if (f.full) {
+          ctx.fillStyle = f.color.replace(/0\.16/, (0.16 * (f.life / 0.22)).toFixed(3));
+          const half = world.width / 2;
+          const x = f.side === 0 ? 0 : half;
+          ctx.fillRect(x, 0, half, world.height);
+          continue;
+        }
+        ctx.save();
+        ctx.strokeStyle = f.color;
+        ctx.globalAlpha = Math.max(0, f.life / 0.08);
+        ctx.lineWidth = f.width;
+        glow(f.color, 10);
+        ctx.beginPath();
+        ctx.moveTo(f.x1, f.y1);
+        ctx.lineTo(f.x2, f.y2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawCursors() {
+      state.players.forEach((p, index) => {
+        const c = cellCenter(p.cursor.x, p.cursor.y);
+        const color = index === 0 ? '#32f6ff' : '#ff4fd8';
+        const good = canBuild(p, p.cursor.x, p.cursor.y);
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.strokeStyle = good ? color : '#ff5b6e';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        glow(good ? color : '#ff5b6e', 10);
+        roundRect(-world.cell * 0.36, -world.cell * 0.36, world.cell * 0.72, world.cell * 0.72, 12);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      });
+    }
+
+    function drawBackdrop() {
+      const g = ctx.createLinearGradient(0, 0, 0, world.height);
+      g.addColorStop(0, '#09122c');
+      g.addColorStop(1, '#060912');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, world.width, world.height);
+
+      for (let i = 0; i < 80; i++) {
+        const x = (i * 137.2) % world.width;
+        const y = (i * 53.7) % world.height;
+        ctx.fillStyle = i % 2 ? 'rgba(50,246,255,0.05)' : 'rgba(255,79,216,0.04)';
+        ctx.fillRect(x, y, 2, 2);
+      }
+    }
+
+    function render() {
+      drawBackdrop();
+      drawGrid();
+      drawBase('left', state.players[0]?.baseHP ?? 100, '#32f6ff');
+      drawBase('right', state.players[1]?.baseHP ?? 100, '#ff4fd8');
+      drawTowers();
+      drawEnemies();
+      drawProjectiles();
+      drawParticles();
+      drawFlashes();
+      drawCursors();
+    }
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function polygon(x, y, radius, sides, angleOffset = 0) {
+      ctx.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const a = angleOffset + Math.PI * 2 * (i / sides);
+        const px = x + Math.cos(a) * radius;
+        const py = y + Math.sin(a) * radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    function glow(color, blur) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = blur;
+    }
+
+    let last = 0;
+    function frame(ts) {
+      const dt = Math.min(0.033, (ts - last) / 1000 || 0.016);
+      last = ts;
+
+      if (state.running) {
+        state.time += dt;
+        updateWave(dt);
+        updateTowers(dt);
+        updateProjectiles(dt);
+        updateEnemies(dt);
+        updateFx(dt);
+        updateUI();
+      }
+
+      render();
+      requestAnimationFrame(frame);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      if ([ ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright' ].includes(key)) e.preventDefault();
+
+      if (key === ' ') {
+        resetGame();
+        return;
+      }
+
+      if (!state.running) return;
+
+      const p1 = state.players[0].controls;
+      const p2 = state.players[1].controls;
+
+      if (key === p1.up) moveCursor(0, 0, -1);
+      else if (key === p1.down) moveCursor(0, 0, 1);
+      else if (key === p1.left) moveCursor(0, -1, 0);
+      else if (key === p1.right) moveCursor(0, 1, 0);
+      else if (key === p1.basic) addTower(0, 'laser');
+      else if (key === p1.pulse) addTower(0, 'pulse');
+      else if (key === p2.up) moveCursor(1, 0, -1);
+      else if (key === p2.down) moveCursor(1, 0, 1);
+      else if (key === p2.left) moveCursor(1, -1, 0);
+      else if (key === p2.right) moveCursor(1, 1, 0);
+      else if (key === p2.basic) addTower(1, 'laser');
+      else if (key === p2.pulse) addTower(1, 'pulse');
+    });
+
+    resize();
+    state.players = makePlayers();
+    updateUI();
+    window.addEventListener('resize', resize);
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
